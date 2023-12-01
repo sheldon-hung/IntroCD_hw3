@@ -3,16 +3,23 @@
 
 #include "AST/expression.hpp"
 
-class UnaryOperatorNode : public ExpressionNode {
-  public:
-    UnaryOperatorNode(const uint32_t line, const uint32_t col
-                      /* TODO: operator, expression */);
-    ~UnaryOperatorNode() = default;
+#include <string>
 
-    void print() override;
+class UnaryOperatorNode : public ExpressionNode
+{
+public:
+  UnaryOperatorNode(const uint32_t line, const uint32_t col,
+                    /* TODO: operator, expression */
+                    const char *const p_operator,
+                    ExpressionNode *p_expression);
+  ~UnaryOperatorNode() = default;
 
-  private:
-    // TODO: operator, expression
+  void print(int level) override;
+
+private:
+  // TODO: operator, expression
+  std::string operator_;
+  ExpressionNode *expression;
 };
 
 #endif

@@ -2,17 +2,21 @@
 #define __AST_RETURN_NODE_H
 
 #include "AST/ast.hpp"
+#include "AST/expression.hpp"
 
-class ReturnNode : public AstNode {
-  public:
-    ReturnNode(const uint32_t line, const uint32_t col
-               /* TODO: expression */);
-    ~ReturnNode() = default;
+class ReturnNode : public AstNode
+{
+public:
+  ReturnNode(const uint32_t line, const uint32_t col,
+             /* TODO: expression */
+             ExpressionNode *p_expression);
+  ~ReturnNode() = default;
 
-    void print() override;
+  void print(int level) override;
 
-  private:
-    // TODO: expression
+private:
+  // TODO: expression
+  ExpressionNode *expression;
 };
 
 #endif

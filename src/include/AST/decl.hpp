@@ -2,23 +2,40 @@
 #define __AST_DECL_NODE_H
 
 #include "AST/ast.hpp"
+#include "AST/variable.hpp"
+#include "AST/ConstantValue.hpp"
 
-class DeclNode : public AstNode {
-  public:
-    // variable declaration
-    DeclNode(const uint32_t line, const uint32_t col
-             /* TODO: identifiers, type */);
+#include <vector>
+#include <string>
 
-    // constant variable declaration
-    //DeclNode(const uint32_t, const uint32_t col
-    //         /* TODO: identifiers, constant */);
+class DeclNode : public AstNode
+{
+public:
+  // variable declaration
+  DeclNode(const uint32_t line, const uint32_t col,
+           /* TODO: identifiers, type */
+           const std::vector<IDINFO> p_idlist,
+           const VARSTRUCT p_varstruct);
 
-    ~DeclNode() = default;
+  // constant variable declaration
+  DeclNode(const uint32_t, const uint32_t col,
+           /* TODO: identifiers, constant */
+           const std::vector<IDINFO> p_idlist,
+           ConstantValueNode *p_constval);
 
-    void print() override;
+  ~DeclNode() = default;
 
-  private:
-    // TODO: variables
+  void print(int level) override;
+
+  VARSTRUCT varstruct;
+  std::vector<IDINFO> idlist;
+
+private:
+  // TODO: variables
+
+  ConstantValueNode *constval = NULL;
+
+  std::vector<VariableNode *> varlist;
 };
 
 #endif

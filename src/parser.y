@@ -46,7 +46,22 @@ extern int yylex_destroy(void);
 %}
 
 %code requires {
+    #include <vector>
+
     class AstNode;
+    class ConstantValueNode;
+    class DeclNode;
+    class VariableReferenceNode;
+    class FunctionNode;
+    class ExpressionNode;
+
+    // enum VALTYPE;
+
+    union COSNTVAL;
+
+    struct VARSTRUCT;
+
+    struct IDINFO;
 }
 
     /* For yylval */
@@ -54,10 +69,58 @@ extern int yylex_destroy(void);
     /* basic semantic value */
     char *identifier;
 
+    int intval;
+    double realval;
+    bool boolval;
+    char *strval;
+
     AstNode *node;
+    ConstantValueNode *constantvaluenode;
+    DeclNode *declnode;
+    VariableReferenceNode *varref;
+    FunctionNode *funcnode;
+    ExpressionNode *expression;
+    std::vector<AstNode*> *nodelist;
+    std::vector<DeclNode*> *declnodelist;
+    std::vector<FunctionNode*> *funcnodelist;
+    std::vector<ExpressionNode*> *exprlist;
+
+    std::vector<IDINFO> *idlist;
+
+    VARSTRUCT *varstruct;
+    // VALTYPE valtype;
+    std::vector<int> *dim;
+
+    
 };
 
-%type <identifier> ProgramName ID
+%type <identifier> ProgramName FunctionName
+
+%type <node> Program
+%type <declnodelist> Declarations DeclarationList FormalArgs FormalArgList
+%type <declnode> Declaration FormalArg
+%type <funcnodelist> Functions FunctionList
+%type <funcnode> Function FunctionDeclaration FunctionDefinition
+%type <varstruct> Type ScalarType ArrType ReturnType
+%type <dim> ArrDecl
+
+%type <idlist> IdList
+
+%type <constantvaluenode> LiteralConstant
+%type <boolval> NegOrNot
+%type <constantvaluenode> StringAndBoolean IntegerAndReal
+
+%type <nodelist> StatementList Statements
+%type <node> Statement CompoundStatement 
+%type <node> Condition While For
+%type <node> Simple Return FunctionCall
+%type <node> ElseOrNot FunctionInvocation
+
+%type <varref> VariableReference
+%type <exprlist> ArrRefList ArrRefs
+
+%type <exprlist> ExpressionList Expressions
+%type <expression> Expression
 
     /* Follow the order in scanner.l */
 
@@ -81,16 +144,16 @@ extern int yylex_destroy(void);
 %token END BEGIN_ /* Use BEGIN_ since BEGIN is a keyword in lex */
 %token DO ELSE FOR IF THEN WHILE
 %token DEF OF TO RETURN VAR
-%token FALSE TRUE
+%token <boolval> FALSE TRUE
 %token PRINT READ
 
     /* Identifier */
-%token ID
+%token <identifier> ID
 
     /* Literal */
-%token INT_LITERAL
-%token REAL_LITERAL
-%token STRING_LITERAL
+%token <intval> INT_LITERAL
+%token <realval> REAL_LITERAL
+%token <strval> STRING_LITERAL
 
 %%
 
@@ -100,87 +163,99 @@ Program:
     DeclarationList FunctionList CompoundStatement
     /* End of ProgramBody */
     END {
-        root = new ProgramNode(@1.first_line, @1.first_column,
-                               $1);
+        root = new ProgramNode(@1.first_line, @1.first_column, $1, $3, $4, (CompoundStatementNode*)$5);
 
         free($1);
     }
 ;
 
 ProgramName:
-    ID
+    ID { $$ = $1; }
 ;
 
 DeclarationList:
-    Epsilon
+    Epsilon { $$ = NULL; }
     |
-    Declarations
+    Declarations { $$ = $1; }
 ;
 
 Declarations:
-    Declaration
+    Declaration { $$ = new std::vector<DeclNode*>; $$->push_back($1); }
     |
-    Declarations Declaration
+    Declarations Declaration { $1->push_back($2); $$ = $1; }
 ;
 
 FunctionList:
-    Epsilon
+    Epsilon { $$ = NULL; }
     |
-    Functions
+    Functions { $$ = $1; }
 ;
 
 Functions:
-    Function
+    Function { $$ = new std::vector<FunctionNode*>; $$->push_back($1); }
     |
-    Functions Function
+    Functions Function { $1->push_back($2); $$ = $1; }
 ;
 
 Function:
-    FunctionDeclaration
+    FunctionDeclaration { $$ = $1; }
     |
-    FunctionDefinition
+    FunctionDefinition { $$ = $1; }
 ;
 
 FunctionDeclaration:
-    FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON
+    FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON {
+        $$ = new FunctionNode(@1.first_line, @1.first_column, $1, $3, $5->valtype, NULL);
+    }
 ;
 
 FunctionDefinition:
     FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType
     CompoundStatement
-    END
+    END {
+        $$ = new FunctionNode(@1.first_line, @1.first_column, $1, $3, $5->valtype, (CompoundStatementNode*)$6);
+    }
 ;
 
 FunctionName:
-    ID
+    ID { $$ = $1; }
 ;
 
 FormalArgList:
-    Epsilon
+    Epsilon { $$ = NULL; }
     |
-    FormalArgs
+    FormalArgs { $$ = $1; }
 ;
 
 FormalArgs:
-    FormalArg
+    FormalArg { $$ = new std::vector<DeclNode*>; $$->push_back($1); }
     |
-    FormalArgs SEMICOLON FormalArg
+    FormalArgs SEMICOLON FormalArg { $1->push_back($3); $$ = $1; }
 ;
 
 FormalArg:
-    IdList COLON Type
+    IdList COLON Type {
+        $$ = new DeclNode(@1.first_line, @1.first_column, *$1, *$3);
+        free($1); free($3);
+    }
 ;
 
 IdList:
-    ID
+    ID {
+        IDINFO idinfo; idinfo.line = @1.first_line; idinfo.column = @1.first_column; idinfo.name = $1;
+        $$ = new std::vector<IDINFO>; $$->push_back(idinfo);
+    }
     |
-    IdList COMMA ID
+    IdList COMMA ID {
+        IDINFO idinfo; idinfo.line = @3.first_line; idinfo.column = @3.first_column; idinfo.name = $3;
+        $1->push_back(idinfo); $$ = $1;
+    }
 ;
 
 ReturnType:
-    COLON ScalarType
+    COLON ScalarType { $$ = $2; }
     |
-    Epsilon
+    Epsilon { $$ = new VARSTRUCT; $$->valtype = Void; $$->dim = NULL; }
 ;
 
     /*
@@ -188,63 +263,101 @@ ReturnType:
                                    */
 
 Declaration:
-    VAR IdList COLON Type SEMICOLON
+    VAR IdList COLON Type SEMICOLON {
+        $$ = new DeclNode(@1.first_line, @1.first_column, *$2, *$4);
+        free($2); free($4);
+    }
     |
-    VAR IdList COLON LiteralConstant SEMICOLON
+    VAR IdList COLON LiteralConstant SEMICOLON {
+        $$ = new DeclNode(@1.first_line, @1.first_column, *$2, $4);
+        free($2);
+    }
 ;
 
 Type:
-    ScalarType
+    ScalarType { $$ = $1; }
     |
-    ArrType
+    ArrType { $$ = $1; }
 ;
 
 ScalarType:
-    INTEGER
+    INTEGER { $$ = new VARSTRUCT; $$->valtype = Integer; $$->dim = NULL; }
     |
-    REAL
+    REAL { $$ = new VARSTRUCT; $$->valtype = Real; $$->dim = NULL; }
     |
-    STRING
+    STRING { $$ = new VARSTRUCT; $$->valtype = String; $$->dim = NULL; }
     |
-    BOOLEAN
+    BOOLEAN { $$ = new VARSTRUCT; $$->valtype = Boolean; $$->dim = NULL; }
 ;
 
 ArrType:
-    ArrDecl ScalarType
+    ArrDecl ScalarType {  $$ = $2; $$->dim = $1; }
 ;
 
 ArrDecl:
-    ARRAY INT_LITERAL OF
+    ARRAY INT_LITERAL OF { $$ = new std::vector<int>; $$->push_back($2); }
     |
-    ArrDecl ARRAY INT_LITERAL OF
+    ArrDecl ARRAY INT_LITERAL OF { $1->push_back($3); $$ = $1; }
 ;
 
 LiteralConstant:
-    NegOrNot INT_LITERAL
+    NegOrNot INT_LITERAL {
+        CONSTVAL intarg;
+        if ($1)
+        {
+            intarg.intval = -$2;
+        }
+        else
+        {
+            intarg.intval = $2;
+            $$ = new ConstantValueNode(@2.first_line, @2.first_column, Integer, intarg);
+        }
+        
+    }
     |
-    NegOrNot REAL_LITERAL
+    NegOrNot REAL_LITERAL {
+        CONSTVAL realarg;
+        if ($1) realarg.realval = -$2;
+        else realarg.realval = $2;
+        $$ = new ConstantValueNode(@1.first_line, @1.first_column, Real, realarg);
+    }
     |
-    StringAndBoolean
+    StringAndBoolean { $$ = $1; }
 ;
 
 NegOrNot:
-    Epsilon
+    Epsilon { $$ = false; }
     |
-    MINUS %prec UNARY_MINUS
+    MINUS %prec UNARY_MINUS { $$ = true; }
 ;
 
 StringAndBoolean:
-    STRING_LITERAL
+    STRING_LITERAL {
+        CONSTVAL strarg; strarg.strval = $1;
+        $$ = new ConstantValueNode(@1.first_line, @1.first_column, String, strarg);
+    }
     |
-    TRUE
+    TRUE {
+        CONSTVAL boolarg; boolarg.boolval = $1;
+        $$ = new ConstantValueNode(@1.first_line, @1.first_column, Boolean, boolarg);
+    }
     |
-    FALSE
+    FALSE {
+        CONSTVAL boolarg; boolarg.boolval = $1;
+        $$ = new ConstantValueNode(@1.first_line, @1.first_column, Boolean, boolarg);
+    }
 ;
 
 IntegerAndReal:
-    INT_LITERAL
+    INT_LITERAL {
+        CONSTVAL intarg; intarg.intval = $1;
+        $$ = new ConstantValueNode(@1.first_line, @1.first_column, Integer, intarg);
+    }
     |
-    REAL_LITERAL
+    REAL_LITERAL {
+        CONSTVAL realarg; realarg.realval = $1;
+        $$ = new ConstantValueNode(@1.first_line, @1.first_column, Real, realarg);
+    }
 ;
 
     /*
@@ -252,154 +365,166 @@ IntegerAndReal:
                   */
 
 Statement:
-    CompoundStatement
+    CompoundStatement { $$ = $1; }
     |
-    Simple
+    Simple { $$ = $1; }
     |
-    Condition
+    Condition { $$ = $1; }
     |
-    While
+    While { $$ = $1; }
     |
-    For
+    For { $$ = $1; }
     |
-    Return
+    Return { $$ = $1; }
     |
-    FunctionCall
+    FunctionCall { $$ = $1; }
 ;
 
 CompoundStatement:
     BEGIN_
     DeclarationList
     StatementList
-    END
+    END { $$ = new CompoundStatementNode(@1.first_line, @1.first_column, $2, $3); }
 ;
 
 Simple:
-    VariableReference ASSIGN Expression SEMICOLON
+    VariableReference ASSIGN Expression SEMICOLON { $$ = new AssignmentNode(@2.first_line, @2.first_column, $1, $3); }
     |
-    PRINT Expression SEMICOLON
+    PRINT Expression SEMICOLON { $$ = new PrintNode(@1.first_line, @1.first_column, $2); }
     |
-    READ VariableReference SEMICOLON
+    READ VariableReference SEMICOLON { $$ = new ReadNode(@1.first_line, @1.first_column, $2); }
 ;
 
 VariableReference:
-    ID ArrRefList
+    ID ArrRefList { $$ = new VariableReferenceNode(@1.first_line, @1.first_column, $1, $2); }
 ;
 
 ArrRefList:
-    Epsilon
+    Epsilon { $$ = NULL; }
     |
-    ArrRefs
+    ArrRefs { $$ = $1; }
 ;
 
 ArrRefs:
-    L_BRACKET Expression R_BRACKET
+    L_BRACKET Expression R_BRACKET { $$ = new std::vector<ExpressionNode*>; $$->push_back($2); }
     |
-    ArrRefs L_BRACKET Expression R_BRACKET
+    ArrRefs L_BRACKET Expression R_BRACKET {  $1->push_back($3); $$ = $1; }
 ;
 
 Condition:
     IF Expression THEN
     CompoundStatement
-    ElseOrNot
-    END IF
+    ElseOrNot 
+    END IF {
+        $$ = new IfNode(@1.first_line, @1.first_column, $2, (CompoundStatementNode*)$4, (CompoundStatementNode*)$5);
+    }
 ;
 
 ElseOrNot:
     ELSE
-    CompoundStatement
+    CompoundStatement { $$ = $2; }
     |
-    Epsilon
+    Epsilon { $$ = NULL; }
 ;
 
 While:
     WHILE Expression DO
     CompoundStatement
-    END DO
+    END DO { $$ = new WhileNode(@1.first_line, @1.first_column, $2, (CompoundStatementNode*)$4); }
 ;
 
 For:
     FOR ID ASSIGN INT_LITERAL TO INT_LITERAL DO
     CompoundStatement
-    END DO
+    END DO { 
+        $$ = new ForNode(@1.first_line, @1.first_column, @2.first_line, @2.first_column,
+                         @3.first_line, @3.first_column, @4.first_line, @4.first_column,
+                         @6.first_line, @6.first_column, $2, $4, $6, (CompoundStatementNode*)$8);
+    }
 ;
 
 Return:
-    RETURN Expression SEMICOLON
+    RETURN Expression SEMICOLON { $$ = new ReturnNode(@1.first_line, @1.first_column, $2); }
 ;
 
 FunctionCall:
-    FunctionInvocation SEMICOLON
+    FunctionInvocation SEMICOLON { $$ = $1; }
 ;
 
 FunctionInvocation:
-    ID L_PARENTHESIS ExpressionList R_PARENTHESIS
+    ID L_PARENTHESIS ExpressionList R_PARENTHESIS {
+        $$ = new FunctionInvocationNode(@1.first_line, @1.first_column, $1, $3);
+    }
 ;
 
 ExpressionList:
-    Epsilon
+    Epsilon { $$ = NULL; }
     |
-    Expressions
+    Expressions { $$ = $1; }
 ;
 
 Expressions:
-    Expression
+    Expression { $$ = new std::vector<ExpressionNode*>; $$->push_back($1); }
     |
-    Expressions COMMA Expression
+    Expressions COMMA Expression { $1->push_back($3); $$ = $1; }
 ;
 
 StatementList:
-    Epsilon
+    Epsilon { $$ = NULL; }
     |
-    Statements
+    Statements { $$ = $1; }
 ;
 
 Statements:
-    Statement
+    Statement { $$ = new std::vector<AstNode*>; $$->push_back($1); }
     |
-    Statements Statement
+    Statements Statement { $1->push_back($2); $$ = $1; }
 ;
 
 Expression:
-    L_PARENTHESIS Expression R_PARENTHESIS
+    L_PARENTHESIS Expression R_PARENTHESIS { $$ = $2; }
     |
-    MINUS Expression %prec UNARY_MINUS
+    MINUS Expression %prec UNARY_MINUS { $$ = new UnaryOperatorNode(@1.first_line, @1.first_column, "neg", $2); }
     |
-    Expression MULTIPLY Expression
+    Expression MULTIPLY Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "*", $1, $3); }
     |
-    Expression DIVIDE Expression
+    Expression DIVIDE Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "/", $1, $3); }
     |
-    Expression MOD Expression
+    Expression MOD Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "mod", $1, $3); }
     |
-    Expression PLUS Expression
+    Expression PLUS Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "+", $1, $3); }
     |
-    Expression MINUS Expression
+    Expression MINUS Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "-", $1, $3); }
     |
-    Expression LESS Expression
+    Expression LESS Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "<", $1, $3); }
     |
-    Expression LESS_OR_EQUAL Expression
+    Expression LESS_OR_EQUAL Expression {
+        $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "<=", $1, $3);
+    }
     |
-    Expression GREATER Expression
+    Expression GREATER Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, ">", $1, $3); }
     |
-    Expression GREATER_OR_EQUAL Expression
+    Expression GREATER_OR_EQUAL Expression {
+        $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, ">=", $1, $3);
+    }
     |
-    Expression EQUAL Expression
+    Expression EQUAL Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "=", $1, $3); }
     |
-    Expression NOT_EQUAL Expression
+    Expression NOT_EQUAL Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "<>", $1, $3); }
     |
-    NOT Expression
+    NOT Expression { $$ = new UnaryOperatorNode(@1.first_line, @1.first_column, "not", $2); }
     |
-    Expression AND Expression
+    Expression AND Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "and", $1, $3); }
     |
-    Expression OR Expression
+    Expression OR Expression { $$ = new BinaryOperatorNode(@2.first_line, @2.first_column, "or", $1, $3); }
     |
-    IntegerAndReal
+    IntegerAndReal { $$ = (ExpressionNode*)$1; }
     |
-    StringAndBoolean
+    StringAndBoolean { $$ = (ExpressionNode*)$1; }
     |
-    VariableReference
+    VariableReference { $$ = (ExpressionNode*)$1; }
     |
-    FunctionInvocation
+    FunctionInvocation { $$ = (ExpressionNode*)$1; }
 ;
 
     /*
@@ -439,7 +564,7 @@ int main(int argc, const char *argv[]) {
     yyparse();
 
     if (argc >= 3 && strcmp(argv[2], "--dump-ast") == 0) {
-        root->print();
+        root->print(0);
     }
 
     printf("\n"

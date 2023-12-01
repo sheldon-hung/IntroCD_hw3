@@ -4,17 +4,24 @@
 #include "AST/expression.hpp"
 
 #include <memory>
+#include <string>
 
-class BinaryOperatorNode : public ExpressionNode {
-  public:
-    BinaryOperatorNode(const uint32_t line, const uint32_t col
-                       /* TODO: operator, expressions */);
-    ~BinaryOperatorNode() = default;
+class BinaryOperatorNode : public ExpressionNode
+{
+public:
+  BinaryOperatorNode(const uint32_t line, const uint32_t col,
+                     /* TODO: operator, expressions */
+                     const char *const p_operator,
+                     ExpressionNode *p_leftexpression,
+                     ExpressionNode *p_rightexpression);
+  ~BinaryOperatorNode() = default;
 
-    void print() override;
+  void print(int level) override;
 
-  private:
-    // TODO: operator, expressions
+private:
+  // TODO: operator, expressions
+  std::string operator_;
+  ExpressionNode *leftexpression, *rightexpression;
 };
 
 #endif

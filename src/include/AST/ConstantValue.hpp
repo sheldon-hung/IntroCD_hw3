@@ -3,16 +3,23 @@
 
 #include "AST/expression.hpp"
 
-class ConstantValueNode : public ExpressionNode {
-  public:
-    ConstantValueNode(const uint32_t line, const uint32_t col
-                      /* TODO: constant value */);
-    ~ConstantValueNode() = default;
+class ConstantValueNode : public ExpressionNode
+{
+public:
+  ConstantValueNode(const uint32_t line, const uint32_t col,
+                    /* TODO: constant value */
+                    const VALTYPE p_valtype,
+                    const CONSTVAL p_constval);
+  ~ConstantValueNode() = default;
 
-    void print() override;
+  void print(int level) override;
 
-  private:
-    // TODO: constant value
+  VALTYPE valtype;
+
+private:
+  // TODO: constant value
+
+  CONSTVAL constval;
 };
 
 #endif

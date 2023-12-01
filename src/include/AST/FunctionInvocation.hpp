@@ -2,19 +2,28 @@
 #define __AST_FUNCTION_INVOCATION_NODE_H
 
 #include "AST/expression.hpp"
+#include "AST/expression.hpp"
 
-class FunctionInvocationNode : public ExpressionNode {
-  public:
-    FunctionInvocationNode(const uint32_t line, const uint32_t col
-                           /* TODO: function name, expressions */);
-    ~FunctionInvocationNode() = default;
+#include <string>
+#include <vector>
 
-    const char *getNameCString() const;
+class FunctionInvocationNode : public ExpressionNode
+{
+public:
+  FunctionInvocationNode(const uint32_t line, const uint32_t col,
+                         /* TODO: function name, expressions */
+                         const char *const p_name,
+                         std::vector<ExpressionNode *> *p_exprlist);
+  ~FunctionInvocationNode() = default;
 
-    void print() override;
+  // const char *getNameCString() const;
 
-  private:
-    // TODO: function name, expressions
+  void print(int level) override;
+
+private:
+  // TODO: function name, expressions
+  std::string name;
+  std::vector<ExpressionNode *> *exprlist = NULL;
 };
 
 #endif

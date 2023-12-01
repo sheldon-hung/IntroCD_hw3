@@ -40,11 +40,11 @@ static void appendToCurrentLine(const char *yytext_ptr);
 integer 0|[1-9][0-9]*
 float {integer}\.(0|[0-9]*[1-9])
 nonzero_integer [1-9][0-9]*
-    /* If the integral part is nonzero, then the fractional part can be either zero
-    or not. However, if the integral part is zero, the fractional part cannot be zero. */
+/* If the integral part is nonzero, then the fractional part can be either zero
+or not. However, if the integral part is zero, the fractional part cannot be zero. */
 nonzero_float ({nonzero_integer}\.(0|[0-9]*[1-9]))|(0\.([0-9]*[1-9]))
 
-    /* exclusive start condition */
+/* exclusive start condition */
 %x CCOMMENT
 
 %%
@@ -83,8 +83,8 @@ nonzero_float ({nonzero_integer}\.(0|[0-9]*[1-9]))|(0\.([0-9]*[1-9]))
 "real"    { LIST_TOKEN("KWreal"); return REAL; }
 "string"  { LIST_TOKEN("KWstring"); return STRING; }
 
-"true"    { LIST_TOKEN("KWtrue"); return TRUE; }
-"false"   { LIST_TOKEN("KWfalse"); return FALSE; }
+"true"    { LIST_TOKEN("KWtrue"); yylval.boolval = true; return TRUE; }
+"false"   { LIST_TOKEN("KWfalse"); yylval.boolval = false; return FALSE; }
 
 "def"     { LIST_TOKEN("KWdef"); return DEF; }
 "return"  { LIST_TOKEN("KWreturn"); return RETURN; }
@@ -113,14 +113,30 @@ nonzero_float ({nonzero_integer}\.(0|[0-9]*[1-9]))|(0\.([0-9]*[1-9]))
 }
 
     /* Integer (decimal/octal) */
-{integer} { LIST_LITERAL("integer", yytext); return INT_LITERAL; }
-0[0-7]+   { LIST_LITERAL("oct_integer", yytext); return INT_LITERAL; }
+{integer} {
+    LIST_LITERAL("integer", yytext);
+    yylval.intval = strtol(yytext, NULL, 10);
+    return INT_LITERAL;
+}
+0[0-7]+   {
+    LIST_LITERAL("oct_integer", yytext);
+    yylval.intval = strtol(yytext, NULL, 8);    
+    return INT_LITERAL;
+}
 
     /* Floating-Point */
-{float} { LIST_LITERAL("float", yytext); return REAL_LITERAL; }
+{float} {
+    LIST_LITERAL("float", yytext);
+    yylval.realval = atof(yytext);    
+    return REAL_LITERAL;
+}
 
     /* Scientific Notation [Ee][+-]?[0-9]+ */
-({nonzero_integer}|{nonzero_float})[Ee][+-]?({integer}) { LIST_LITERAL("scientific", yytext); return REAL_LITERAL; }
+({nonzero_integer}|{nonzero_float})[Ee][+-]?({integer}) {
+    LIST_LITERAL("scientific", yytext);
+    yylval.realval = atof(yytext);  
+    return REAL_LITERAL;
+}
 
     /* String */
 \"([^"\n]|\"\")*\" {
@@ -145,6 +161,7 @@ nonzero_float ({nonzero_integer}\.(0|[0-9]*[1-9]))|(0\.([0-9]*[1-9]))
     }
     *str_ptr = '\0';
     LIST_LITERAL("string", string_literal);
+    yylval.strval = strndup(string_literal, MAX_LINE_LENG);
     return STRING_LITERAL;
 }
 

@@ -2,17 +2,21 @@
 #define __AST_PRINT_NODE_H
 
 #include "AST/ast.hpp"
+#include "AST/expression.hpp"
 
-class PrintNode : public AstNode {
-  public:
-    PrintNode(const uint32_t line, const uint32_t col
-              /* TODO: expression */);
-    ~PrintNode() = default;
+class PrintNode : public AstNode
+{
+public:
+  PrintNode(const uint32_t line, const uint32_t col,
+            /* TODO: expression */
+            ExpressionNode *p_expression);
+  ~PrintNode() = default;
 
-    void print() override;
+  void print(int level) override;
 
-  private:
-    // TODO: expression
+private:
+  // TODO: expression
+  ExpressionNode *expression;
 };
 
 #endif
